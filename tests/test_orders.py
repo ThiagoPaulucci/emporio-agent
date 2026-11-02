@@ -1,3 +1,4 @@
+
 import json
 import os
 from datetime import date
@@ -67,19 +68,33 @@ def test_pending_order_has_no_tracking_or_delivery_estimate():
  
  
 def test_return_windows_for_delivered_order():
-    # Order 7 was delivered (estimated) on 2026-02-17.
+    # Order 7: purchased 2026-02-03, delivered (estimated) 2026-02-17.
     email = _email_of(7)
     inside = _lookup_order(7, email, date(2026, 2, 20))["order"]["return_info"]
     assert inside["within_regret_window"] is True
+    assert inside["within_preference_exchange_window"] is True
+    assert inside["within_defect_exchange_window"] is True
  
-    mid = _lookup_order(7, email, date(2026, 3, 10))["order"]["return_info"]
-    assert mid["days_since_receipt"] == 21
+    mid = _lookup_order(7, email, date(2026, 3, 1))["order"]["return_info"]
+    assert mid["days_since_receipt"] == 12
+    assert mid["days_since_purchase"] == 26
     assert mid["within_regret_window"] is False
     assert mid["within_defect_exchange_window"] is True
  
     late = _lookup_order(7, email, date(2026, 6, 1))["order"]["return_info"]
     assert late["within_defect_exchange_window"] is False
     assert late["within_legal_warranty"] is False
+ 
+ 
+def test_defect_window_counts_from_purchase_date_not_from_receipt():
+    # Manual 4.2: "30 dias corridos apos a compra". Purchase 2026-02-03 -> day 30 is 03/05.
+    email = _email_of(7)
+    day_30 = _lookup_order(7, email, date(2026, 3, 5))["order"]["return_info"]
+    day_31 = _lookup_order(7, email, date(2026, 3, 6))["order"]["return_info"]
+    assert day_30["days_since_purchase"] == 30
+    assert day_30["within_defect_exchange_window"] is True
+    assert day_31["days_since_purchase"] == 31
+    assert day_31["within_defect_exchange_window"] is False
  
  
 def test_seventh_day_is_still_inside_the_regret_window():

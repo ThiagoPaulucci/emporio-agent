@@ -1,3 +1,4 @@
+
 """Order lookup tool with identity verification.
  
 Why a separate module: order data is personal data (LGPD, manual section 9),
@@ -29,9 +30,10 @@ import pandas as pd
  
 from .data import load_all
  
-REGRET_WINDOW_DAYS = 7  # manual 4.1: right of withdrawal
-DEFECT_EXCHANGE_WINDOW_DAYS = 30  # manual 4.2: exchange for manufacturing defect
-LEGAL_WARRANTY_DAYS = 90  # manual 8.1: legal warranty from receipt
+REGRET_WINDOW_DAYS = 7  # manual 4.1: right of withdrawal, counted from receipt
+PREFERENCE_EXCHANGE_WINDOW_DAYS = 7  # manual 4.3: exchange by preference (assumed from receipt)
+DEFECT_EXCHANGE_WINDOW_DAYS = 30  # manual 4.2: defect exchange, counted from the PURCHASE
+LEGAL_WARRANTY_DAYS = 90  # manual 8.1: legal warranty, counted from receipt
  
 _VERIFICATION_FAILED = {
     "status": "verification_failed",
@@ -51,18 +53,25 @@ def _iso(value) -> Optional[str]:
     return None if pd.isna(value) else pd.Timestamp(value).date().isoformat()
  
  
-def _return_info(estimated_delivery, today: date) -> dict:
+def _return_info(order_date, estimated_delivery, today: date) -> dict:
     receipt = pd.Timestamp(estimated_delivery).date()
-    days = max((today - receipt).days, 0)
+    purchase = pd.Timestamp(order_date).date()
+    since_receipt = max((today - receipt).days, 0)
+    since_purchase = max((today - purchase).days, 0)
     return {
+        "purchase_date": purchase.isoformat(),
         "receipt_date_assumed": receipt.isoformat(),
-        "days_since_receipt": days,
-        "within_regret_window": days <= REGRET_WINDOW_DAYS,
-        "within_defect_exchange_window": days <= DEFECT_EXCHANGE_WINDOW_DAYS,
-        "within_legal_warranty": days <= LEGAL_WARRANTY_DAYS,
+        "days_since_purchase": since_purchase,
+        "days_since_receipt": since_receipt,
+        # 4.1 and 4.3 count from receipt; 4.2 counts from the purchase; 8.1 from receipt.
+        "within_regret_window": since_receipt <= REGRET_WINDOW_DAYS,
+        "within_preference_exchange_window": since_receipt <= PREFERENCE_EXCHANGE_WINDOW_DAYS,
+        "within_defect_exchange_window": since_purchase <= DEFECT_EXCHANGE_WINDOW_DAYS,
+        "within_legal_warranty": since_receipt <= LEGAL_WARRANTY_DAYS,
         "note": (
             "Receipt date is assumed to be the estimated delivery date "
-            "(no actual delivery date in the data)."
+            "(no actual delivery date in the data). Defect exchange (30 days) "
+            "counts from the purchase date, as written in the manual."
         ),
     }
  
@@ -108,7 +117,9 @@ def _lookup_order(order_id, customer_email: str, today: date) -> dict:
         else order["notes"],
     }
     if order["status"] == "delivered" and pd.notna(order["estimated_delivery"]):
-        result["return_info"] = _return_info(order["estimated_delivery"], today)
+        result["return_info"] = _return_info(
+            order["order_date"], order["estimated_delivery"], today
+        )
  
     first_name = str(customer["name"]).split()[0]
     return {"status": "found", "customer_first_name": first_name, "order": result}
@@ -130,8 +141,9 @@ def get_order_status(order_id: int, customer_email: str) -> dict:
     Returns:
         - {"status": "found", "customer_first_name": ..., "order": {...}} when
           both values match. For delivered orders, "order.return_info" tells
-          whether the 7-day withdrawal window, the 30-day defect-exchange
-          window and the 90-day legal warranty are still open.
+          whether the 7-day withdrawal window, the 7-day preference-exchange
+          window, the 30-day defect-exchange window (from purchase) and the
+          90-day legal warranty (from receipt) are still open.
         - {"status": "verification_failed", ...} otherwise. Ask the customer to
           check the order number and e-mail.
     """
