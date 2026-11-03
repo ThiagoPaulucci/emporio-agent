@@ -1,5 +1,6 @@
 ﻿# Scenario 4 – Warranty Information
 > **Validation note:** This is a representative dialogue manually authored from verified local tool outputs and policy retrieval results. It is not a recorded live LLM transcript. The English text is a faithful rendering of the intended Brazilian Portuguese customer-facing interaction.
+
 **Customer:**
 
 What is the warranty period for a musical instrument?
@@ -17,3 +18,4 @@ If you tell me which instrument you are interested in, I can help you identify t
 **Technical implementation:**
 
 The `retrieve_policy` tool retrieves the warranty sections from the policy PDF. The response distinguishes the 90-day legal warranty from additional manufacturer coverage, which varies by product.
+

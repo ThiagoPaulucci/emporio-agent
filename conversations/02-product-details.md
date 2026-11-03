@@ -1,5 +1,6 @@
 ﻿# Scenario 2 – Product Details and Availability
 > **Validation note:** This is a representative dialogue manually authored from verified local tool outputs and policy retrieval results. It is not a recorded live LLM transcript. The English text is a faithful rendering of the intended Brazilian Portuguese customer-facing interaction.
+
 **Customer:**
 
 How much is the Takamine GD20? Is it available?
@@ -17,3 +18,4 @@ Would you like to know more about its specifications?
 **Technical implementation:**
 
 The `get_product_details` tool retrieves the product's regular price, PIX price, stock quantity, and availability. The local validation also identified an expired promotion, which is not presented as an active offer.
+
