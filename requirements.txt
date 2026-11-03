@@ -1,4 +1,6 @@
-pandas>=2.0
+pandas>=2.0,<3.0
+numpy<2
 python-dotenv>=1.0
 google-genai
 pytest>=8.0
+pypdf>=5.0.0
